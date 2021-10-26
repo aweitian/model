@@ -1,2 +1,2 @@
 # model
-model，功能包含：ORM，数据验证
+model，第一版只包含:ORM
