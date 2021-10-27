@@ -1,7 +1,7 @@
 <?php
 
-require __DIR__ . "/Admin.php";
-require __DIR__ . "/MutiPks.php";
+require_once __DIR__ . "/Admin.php";
+require_once __DIR__ . "/MutiPks.php";
 
 class SelectTest extends PHPUnit_Framework_TestCase
 {
@@ -20,6 +20,7 @@ class SelectTest extends PHPUnit_Framework_TestCase
 
         $a = $model->find(7);
 
+//        var_dump($a);exit;
         $this->assertEquals($a->admin_id, 7);
 
 
@@ -62,6 +63,7 @@ class SelectTest extends PHPUnit_Framework_TestCase
         ));
         $model = new \Aw\Admin($connect);
         $a = $model->where('admin_id', '>', 1)->select();
+//        var_dump($a);exit;
         foreach ($a as $item) {
             if ($item->admin_id == 2) {
                 $this->assertEquals('dkd', $item->name);

@@ -27,12 +27,11 @@ class Model
      */
     public $builder;
 
-    public $binder = [];
-
     protected $data = [];
 
     protected $append = [];
 
+    protected $table_fields = [];
     /**
      * last sql
      * @var String
@@ -54,6 +53,14 @@ class Model
             $this->table = end($this->table);
         }
         $this->builder = new Crud($this->table);
+
+        $result = $this->connection->fetchAll("SHOW FULL COLUMNS FROM `$this->table`");
+
+        foreach ($result as $item) {
+            $this->table_fields[$item['Field']] = $item;
+        }
+
+
     }
 
     protected function fill(array $data)
@@ -76,34 +83,37 @@ class Model
     /**
      * @param $field
      * @param $op
-     * @param null $bind
+     * @param null $value
      * @return $this
      */
-    public function where($field, $op, $bind = null)
+    public function where($field, $op, $value = null)
     {
         $where = '';
+        $bind = [];
         if (is_string($field) && preg_match("/^\w+$/", $field)) {
-            if ($bind == null) {
-                $bind = $op;
+            if ($value == null) {
+                $value = $op;
                 $op = '=';
             }
             $where = "`$field` $op :$field";
-            $this->binder[$field] = $bind;
+            $bind[$field] = $value;
+//            $this->builder->bindValue($field, $bind);
         } else if (is_array($field)) {
             if (count($field) == 2) {
                 $where = "`{$field[0]}` = :{$field[0]}";
-                $bind = $field[1];
-                $this->binder[$field[0]] = $bind;
+                $bind[$field[0]] = $field[1];
+//                $this->builder->bindValue($field[0], $bind);
             } else if (count($field) == 3) {
                 $where = "`{$field[0]}` {$field[1]} :{$field[2]}";
-                $this->binder[$field[0]] = $field[2];
+                $bind[$field[0]] = $field[2];
             }
         } else if (is_callable($field)) {
-            $where = "(" . call_user_func($field, $this->builder, $this->binder) . ")";
+            $where = "(" . call_user_func($field, $this->builder) . ")";
         }
 
         if ($where) {
             $this->builder->bindWhere($where);
+            $this->builder->bindValue($bind);
         }
         return $this;
     }
@@ -115,6 +125,17 @@ class Model
     public function field($field)
     {
         $this->builder->bindField($field);
+        return $this;
+    }
+
+    /**
+     * @param $key
+     * @param null $value
+     * @return $this
+     */
+    public function bindValue($key, $value = null)
+    {
+        $this->builder->bindValue($key, $value);
         return $this;
     }
 
@@ -135,8 +156,9 @@ class Model
     {
         $sql = $this->builder->select();
         $this->sql = $sql;
-        //var_dump($sql, $this->binder);
-        $data = $this->connection->fetchAll($sql, $this->binder);
+        $bind = $this->builder->getBindValue();
+//        var_dump($sql, $bind);
+        $data = $this->connection->fetchAll($sql, $bind);
         $collection = new ModelCollection();
         foreach ($data as $row) {
             $m = new static($this->connection);
@@ -146,8 +168,49 @@ class Model
         return $collection;
     }
 
-    public function update(array $data) {
+    /**
+     * @param array $data
+     * @return int
+     */
+    public function update(array $data)
+    {
+        foreach ($data as $field => $value) {
+            $this->builder->bindField($field);
+            $this->builder->bindValue($field, $value);
+        }
+        $sql = $this->builder->update();
+        $bind = $this->builder->getBindValue();
+//        var_dump($sql,$bind);
+//        exit;
+        return $this->connection->exec($sql, $bind);
+    }
 
+    /**
+     * @return int
+     */
+    public function drop()
+    {
+        $sql = $this->builder->delete();
+        $bind = $this->builder->getBindValue();
+//        var_dump($sql, $bind);
+//        exit;
+        return $this->connection->exec($sql, $bind);
+    }
+
+
+    /**
+     * @param array $data
+     * @return array
+     */
+    public function update_debug(array $data)
+    {
+        foreach ($data as $field => $value) {
+            $this->builder->bindField($field);
+            $this->builder->bindValue($field, $value);
+        }
+        $sql = $this->builder->update();
+        $bind = $this->builder->getBindValue();
+        return [$sql, $bind];
     }
 
     /**
@@ -167,7 +230,7 @@ class Model
         }
         $sql = $this->builder
             ->select();
-        $binder = $this->binder;
+        $binder = $this->builder->getBindValue();
 //        var_dump($sql,$binder);
         $this->sql = $sql;
         $data = $this->connection->fetch($sql, $binder);
@@ -180,42 +243,42 @@ class Model
     }
 
 
-
     public function save()
     {
         foreach ($this->data as $field => $value) {
-            $this->builder->bindField($field,$value);
+            $this->builder->bindField($field, $value);
         }
         if (is_string($this->pk)) {
-            if (array_key_exists($this->pk,$this->data)) {
+            if (array_key_exists($this->pk, $this->data)) {
                 //UPDATE
-                $this->builder->bindWhere($this->pk,$this->data[$this->pk]);
+                $this->builder->bindWhere($this->pk, $this->data[$this->pk]);
                 foreach ($this->data as $field => $bind) {
                     $this->builder->bindField($field);
-                    $this->builder->bindValue($field,$bind);
+                    $this->builder->bindValue($field, $bind);
                 }
                 $sql = $this->builder->update();
+                $binder = $this->builder->getBindValue();
                 $this->sql = $sql;
-                $ar = $this->connection->exec($sql,$this->binder);
+//                var_dump($sql,$this->binder);
+                $ar = $this->connection->exec($sql, $binder);
                 if ($ar > 0) {
-                    return $this;
-                } else{
+                    return $ar;
+                } else {
                     throw new \Exception('SAVE FAILED');
                 }
             } else {
+//                var_dump('insert');exit;
                 //insert
                 if ($this->incrementing) {
-                    $this->builder->bindWhere($this->pk,$this->data[$this->pk]);
+//                    $this->builder->bindWhere($this->pk, $this->data[$this->pk]);
                     $sql = $this->builder->insert();
+                    $bind = $this->data;
                     $this->sql = $sql;
-                    $id = $this->connection->insert($sql,$this->binder);
+                    $id = $this->connection->insert($sql, $bind);
                     if ($id > 0) {
-                        $m = new static($this->connection);
-                        $data = $this->data;
-                        $data[$this->pk] = $id;
-                        $m->fill($data);
-                        return $m;
-                    } else{
+                        $this->data[$this->pk] = $id;
+                        return $id;
+                    } else {
                         throw new \Exception('SAVE FAILED');
                     }
                 } else {
@@ -223,16 +286,25 @@ class Model
                 }
             }
         } else if (is_array($this->pk)) {
-            for ($i=0;$i<$this->pk;$i++) {
-//                $pk =
+            for ($i = 0; $i < count($this->pk); $i++) {
+                $pk = $this->pk[$i];
+                if (!array_key_exists($pk, $this->data)) {
+                    throw new \Exception("模型为主键为数组,保存时所有主键值必须存在");
+                }
+                $this->builder->bindWhere($pk, $this->data[$pk]);
             }
-            $this->builder->bindWhere($this->pk,$this->data[$this->pk]);
+            foreach ($this->data as $field => $bind) {
+                $this->builder->bindField($field);
+                $this->builder->bindValue($field, $bind);
+            }
             $sql = $this->builder->update();
+            $binder = $this->builder->getBindValue();
             $this->sql = $sql;
-            $ar = $this->connection->exec($sql,$this->binder);
+            $sql = $this->builder->update();
+            $ar = $this->connection->exec($sql, $binder);
             if ($ar > 0) {
-                return $this;
-            } else{
+                return $ar;
+            } else {
                 throw new \Exception('SAVE FAILED');
             }
         } else {
@@ -258,6 +330,7 @@ class Model
 
     public function __set($name, $value)
     {
+//        var_dump('__set',$name,$value);
         if (in_array($name, $this->append)) {
             if (method_exists($this, "set" . ucfirst($name) . "Attr")) {
                 $this->data[$name] = $this->{"set" . ucfirst($name) . "Attr"}($this->data, $value);
@@ -265,7 +338,7 @@ class Model
             } else {
                 throw new \Exception("set" . ucfirst($name) . "Attr method is not exist");
             }
-        } else if (array_key_exists($name, $this->data)) {
+        } else if (array_key_exists($name, $this->data) || array_key_exists($name, $this->table_fields)) {
             $this->data[$name] = $value;
             return $this;
         } else {
