@@ -59,13 +59,15 @@ class Model
         foreach ($result as $item) {
             $this->table_fields[$item['Field']] = $item;
         }
-
-
     }
 
-    protected function fill(array $data)
+    public function fill(array $data)
     {
-        $this->data = $data;
+        foreach ($data as $key => $datum) {
+            if (array_key_exists($key,$this->table_fields)) {
+                $this->data[$key] = $datum;
+            }
+        }
         return $this;
     }
 
@@ -183,6 +185,28 @@ class Model
 //        var_dump($sql,$bind);
 //        exit;
         return $this->connection->exec($sql, $bind);
+    }
+
+    /**
+     * @return int
+     */
+    public function delete()
+    {
+        $sql = $this->builder->delete();
+        $bind = $this->builder->getBindValue();
+        var_dump($sql,$bind);
+        exit;
+        return $this->connection->exec($sql, $bind);
+    }
+
+    /**
+     * @return array
+     */
+    public function delete_debug()
+    {
+        $sql = $this->builder->delete();
+        $bind = $this->builder->getBindValue();
+        return [$sql, $bind];
     }
 
     /**

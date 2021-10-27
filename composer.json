@@ -1,12 +1,12 @@
 {
-  "name": "aweitian/sms",
-  "description": "短信接口",
+  "name": "aweitian/model",
+  "description": "mysql ORM",
   "type": "project",
   "keywords": [
     "php",
     "sms"
   ],
-  "homepage": "https://github.com/aweitian/sms",
+  "homepage": "https://github.com/aweitian/model",
   "license": "MIT",
   "authors": [
     {
