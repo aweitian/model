@@ -12,6 +12,17 @@ namespace Aw;
 use Aw\Build\Mysql\Crud;
 use Aw\Db\Connection\Mysql;
 
+
+/**
+ * @method static where($field, $op, $value = null):Model
+ * @method static find($pk):Model
+ * @method static field($field):Model
+ * @method static select():Model
+ * @method static update(array $data):Model
+ * @method static drop():Model
+ * Class Model
+ * @package Aw
+ */
 class Model
 {
     protected $table;
@@ -61,10 +72,33 @@ class Model
         }
     }
 
+    public function __call($name, $arguments)
+    {
+        if (method_exists($this, "public_$name")) {
+            return call_user_func_array([$this, "public_$name"], $arguments);
+        } else if (method_exists($this->builder, $name)) {
+            return call_user_func_array([$this->builder, $name], $arguments);
+        }
+        throw new \Exception("$name 不存在");
+    }
+
+//    public static function __callStatic($method, $arguments)
+//    {
+//        $m = new static(new \Aw\Db\Connection\Mysql (array(
+//            'host' => '127.0.0.1',
+//            'port' => '3306',
+//            'user' => 'root',
+//            'password' => 'root',
+//            'database' => 'test',
+//            'charset' => 'utf8',
+//        )));
+//        return $m->__call($method, $arguments);
+//    }
+
     public function fill(array $data)
     {
         foreach ($data as $key => $datum) {
-            if (array_key_exists($key,$this->table_fields)) {
+            if (array_key_exists($key, $this->table_fields)) {
                 $this->data[$key] = $datum;
             }
         }
@@ -88,7 +122,7 @@ class Model
      * @param null $value
      * @return $this
      */
-    public function where($field, $op, $value = null)
+    protected function public_where($field, $op, $value = null)
     {
         $where = '';
         $bind = [];
@@ -124,7 +158,7 @@ class Model
      * @param $field
      * @return $this
      */
-    public function field($field)
+    protected function public_field($field)
     {
         $this->builder->bindField($field);
         return $this;
@@ -154,7 +188,7 @@ class Model
     /**
      * @return ModelCollection
      */
-    public function select()
+    protected function public_select()
     {
         $sql = $this->builder->select();
         $this->sql = $sql;
@@ -174,7 +208,7 @@ class Model
      * @param array $data
      * @return int
      */
-    public function update(array $data)
+    protected function public_update(array $data)
     {
         foreach ($data as $field => $value) {
             $this->builder->bindField($field);
@@ -190,12 +224,10 @@ class Model
     /**
      * @return int
      */
-    public function delete()
+    protected function public_delete()
     {
         $sql = $this->builder->delete();
         $bind = $this->builder->getBindValue();
-        var_dump($sql,$bind);
-        exit;
         return $this->connection->exec($sql, $bind);
     }
 
@@ -212,7 +244,7 @@ class Model
     /**
      * @return int
      */
-    public function drop()
+    protected function public_drop()
     {
         $sql = $this->builder->delete();
         $bind = $this->builder->getBindValue();
@@ -241,7 +273,7 @@ class Model
      * @param $pk
      * @return Model|null
      */
-    public function find($pk)
+    protected function public_find($pk)
     {
         if (is_string($this->pk) && (is_string($pk) || is_numeric($pk))) {
             $this->where($this->pk, $pk);
@@ -255,7 +287,6 @@ class Model
         $sql = $this->builder
             ->select();
         $binder = $this->builder->getBindValue();
-//        var_dump($sql,$binder);
         $this->sql = $sql;
         $data = $this->connection->fetch($sql, $binder);
         if ($data) {
