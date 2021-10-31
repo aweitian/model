@@ -273,7 +273,7 @@ class Model
      * @param $pk
      * @return Model|null
      */
-    protected function public_find($pk)
+    protected function public_find($pk=null)
     {
         if (is_string($this->pk) && (is_string($pk) || is_numeric($pk))) {
             $this->where($this->pk, $pk);
@@ -281,8 +281,6 @@ class Model
             for ($i = 0; $i < count($pk); $i++) {
                 $this->where($this->pk[$i], $pk[$i]);
             }
-        } else {
-            return null;
         }
         $sql = $this->builder
             ->select();
@@ -399,5 +397,19 @@ class Model
         } else {
             throw new \Exception("field $name not exist");
         }
+    }
+
+    public function toArray()
+    {
+        $ret = array();
+        foreach (array_merge(array_keys($this->data), $this->append) as $field) {
+            $ret[$field] = $this->__get($field);
+        }
+        return $ret;
+    }
+
+    public function __toString()
+    {
+        return json_encode($this->toArray());
     }
 }

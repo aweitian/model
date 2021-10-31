@@ -70,4 +70,18 @@ class ModelCollection implements \ArrayAccess, IteratorAggregate, Countable
     {
         return count($this->container);
     }
+
+    public function toArray()
+    {
+        $ret = array();
+        foreach ($this->container as $item) {
+            $ret[] = $item->toArray();
+        }
+        return $ret;
+    }
+
+    public function __toString()
+    {
+        return json_encode($this->toArray());
+    }
 }

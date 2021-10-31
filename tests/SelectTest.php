@@ -23,6 +23,13 @@ class SelectTest extends PHPUnit_Framework_TestCase
 //        var_dump($a);exit;
         $this->assertEquals($a->admin_id, 7);
 
+        $model = new \Aw\Admin($connect);
+
+        $a = $model->where('admin_id',7)->find();
+
+//        var_dump($a);exit;
+        $this->assertEquals($a->admin_id, 7);
+
 
         $a = $model->field('name')->find(7);
 
