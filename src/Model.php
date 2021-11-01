@@ -77,7 +77,11 @@ class Model
         if (method_exists($this, "public_$name")) {
             return call_user_func_array([$this, "public_$name"], $arguments);
         } else if (method_exists($this->builder, $name)) {
-            return call_user_func_array([$this->builder, $name], $arguments);
+            call_user_func_array([$this->builder, $name], $arguments);
+            return $this;
+        } else if (method_exists($this->builder, "bind" . ucfirst($name))) {
+            call_user_func_array([$this->builder, "bind" . ucfirst($name)], $arguments);
+            return $this;
         }
         throw new \Exception("$name 不存在");
     }
@@ -193,7 +197,7 @@ class Model
         $sql = $this->builder->select();
         $this->sql = $sql;
         $bind = $this->builder->getBindValue();
-//        var_dump($sql, $bind);
+        var_dump($sql, $bind);
         $data = $this->connection->fetchAll($sql, $bind);
         $collection = new ModelCollection();
         foreach ($data as $row) {
