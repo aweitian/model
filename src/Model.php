@@ -246,6 +246,14 @@ class Model
      */
     protected function public_drop()
     {
+        if (is_string($this->pk)) {
+            $pk = $this->__get($this->pk);
+            $this->where($this->pk, $pk);
+        } else if (is_array($this->pk)) {
+            foreach ($this->pk as $pkk) {
+                $this->where($pkk, $this->__get($pkk));
+            }
+        }
         $sql = $this->builder->delete();
         $bind = $this->builder->getBindValue();
 //        var_dump($sql, $bind);
@@ -273,7 +281,7 @@ class Model
      * @param $pk
      * @return Model|null
      */
-    protected function public_find($pk=null)
+    protected function public_find($pk = null)
     {
         if (is_string($this->pk) && (is_string($pk) || is_numeric($pk))) {
             $this->where($this->pk, $pk);
