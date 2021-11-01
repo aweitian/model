@@ -11,6 +11,7 @@ namespace Aw;
 
 use Aw\Build\Mysql\Crud;
 use Aw\Db\Connection\Mysql;
+use JsonSerializable;
 
 
 /**
@@ -23,7 +24,7 @@ use Aw\Db\Connection\Mysql;
  * Class Model
  * @package Aw
  */
-class Model
+class Model implements JsonSerializable
 {
     protected $table;
     protected $pk = 'id';
@@ -423,5 +424,17 @@ class Model
     public function __toString()
     {
         return json_encode($this->toArray());
+    }
+
+    /**
+     * Specify data which should be serialized to JSON
+     * @link http://php.net/manual/en/jsonserializable.jsonserialize.php
+     * @return mixed data which can be serialized by <b>json_encode</b>,
+     * which is a value of any type other than a resource.
+     * @since 5.4.0
+     */
+    public function jsonSerialize()
+    {
+        return $this->toArray();
     }
 }
