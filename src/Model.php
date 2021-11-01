@@ -197,7 +197,7 @@ class Model
         $sql = $this->builder->select();
         $this->sql = $sql;
         $bind = $this->builder->getBindValue();
-        var_dump($sql, $bind);
+//        var_dump($sql, $bind);
         $data = $this->connection->fetchAll($sql, $bind);
         $collection = new ModelCollection();
         foreach ($data as $row) {
