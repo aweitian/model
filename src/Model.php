@@ -26,9 +26,37 @@ use JsonSerializable;
  */
 class Model implements JsonSerializable
 {
+    protected static $fields = array();
     protected $table;
     protected $pk = 'id';
     protected $incrementing = true;
+    /**
+     * 分页大小获取顺序
+     * 1. size函数的参数
+     * 2. 从GET参数中用size_key来获取size
+     * 3. 使用这默认size
+     * @var int 分页大小
+     */
+    public $size = 20;
+
+    /**
+     * 规则和size一样
+     * @var int
+     */
+    public $current_page = 1;
+    /**
+     * 从GET中用size来获取
+     * @var string
+     */
+    public $size_key = 'size';
+
+    public $page_key = 'page';
+
+    /**
+     * 如果是数组，从这里获取，否则从GET中获取
+     * @var null
+     */
+    public $page_size_src = null;
     /**
      * @var Mysql
      */
@@ -50,6 +78,12 @@ class Model implements JsonSerializable
      */
     public $sql;
 
+    /**
+     * select(true) 会赋值
+     * @var int
+     */
+    protected $select_count_return = 0;
+
     public function __construct($db = null)
     {
         if (is_array($db)) {
@@ -65,8 +99,12 @@ class Model implements JsonSerializable
             $this->table = end($this->table);
         }
         $this->builder = new Crud($this->table);
-
-        $result = $this->connection->fetchAll("SHOW FULL COLUMNS FROM `$this->table`");
+        if (!array_key_exists($this->table, self::$fields)) {
+            $result = $this->connection->fetchAll("SHOW FULL COLUMNS FROM `$this->table`");
+            self::$fields[$this->table] = $result;
+        } else {
+            $result = self::$fields[$this->table];
+        }
 
         foreach ($result as $item) {
             $this->table_fields[$item['Field']] = $item;
@@ -100,11 +138,38 @@ class Model implements JsonSerializable
 //        return $m->__call($method, $arguments);
 //    }
 
+    public function paginate($page = null, $size = null)
+    {
+        $src = is_array($this->page_size_src) ? $this->page_size_src : $_GET;
+        if (is_null($page)) {
+            $page = isset($src[$this->page_key]) && $src[$this->page_key] ? $src[$this->page_key] : $this->current_page;
+        }
+        if (is_null($size)) {
+            $size = isset($src[$this->size_key]) && $src[$this->size_key] ? $src[$this->size_key] : $this->size;
+        }
+        if ($size < 1) {
+            $size = 1;
+        }
+        if ($page < 1) $page = 1;
+
+        $this->builder->useCalcFoundRows();
+        $this->builder->bindLimit(($page - 1) * $size . ',' . $size);
+        $data = $this->public_select(true);
+//        var_dump($data);
+        $total = $this->select_count_return;
+//        var_dump($this->connection->getQueryLog());
+        if ($total < 0) $total = 0;
+        $page_count = ceil($total / $size);
+        if ($page > $page_count) $page = $page_count;
+        return compact('page_count', 'total', 'page', 'size', 'data');
+    }
+
     public function fill(array $data)
     {
-        foreach ($data as $key => $datum) {
-            if (array_key_exists($key, $this->table_fields)) {
-                $this->data[$key] = $datum;
+//        var_dump($this->table_fields, $data);
+        foreach ($this->table_fields as $key => $datum) {
+            if (array_key_exists($key, $data)) {
+                $this->data[$key] = $data[$key];
             }
         }
         return $this;
@@ -191,15 +256,19 @@ class Model implements JsonSerializable
     }
 
     /**
+     * @param bool $select_count
      * @return ModelCollection
      */
-    protected function public_select()
+    protected function public_select($select_count = false)
     {
         $sql = $this->builder->select();
         $this->sql = $sql;
         $bind = $this->builder->getBindValue();
 //        var_dump($sql, $bind);
         $data = $this->connection->fetchAll($sql, $bind);
+        if ($select_count) {
+            $this->select_count_return = $this->connection->scalar($this->builder->count());
+        }
         $collection = new ModelCollection();
         foreach ($data as $row) {
             $m = new static($this->connection);
@@ -300,6 +369,7 @@ class Model implements JsonSerializable
         $binder = $this->builder->getBindValue();
         $this->sql = $sql;
         $data = $this->connection->fetch($sql, $binder);
+//        var_dump($data);
         if ($data) {
             $m = new static($this->connection);
             $m->fill($data);
@@ -380,6 +450,7 @@ class Model implements JsonSerializable
 
     public function __get($name)
     {
+//        var_dump($this->data);
         if (in_array($name, $this->append)) {
             if (method_exists($this, "get" . ucfirst($name) . "Attr")) {
                 return $this->{"get" . ucfirst($name) . "Attr"}($this->data);

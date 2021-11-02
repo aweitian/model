@@ -5,7 +5,6 @@ require_once __DIR__ . "/MutiPks.php";
 
 class SelectTest extends PHPUnit_Framework_TestCase
 {
-
     public function testFind()
     {
         $connect = new Aw\Db\Connection\Mysql (array(
@@ -51,6 +50,7 @@ class SelectTest extends PHPUnit_Framework_TestCase
         $a = $model->find([
             2, 'aa'
         ]);
+//        var_dump($a);
         $this->assertEquals($a->x, 2);
         $this->assertEquals($a->y, 'aa--');
         $this->assertEquals($a->xy, '2--aa');
