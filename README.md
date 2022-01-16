@@ -2,6 +2,7 @@
 model，第一版只包含:ORM
 
 ## 静态调用
+```php
 namespace App\Model
 class Model {
     public static function __callStatic($method, $arguments)
@@ -10,7 +11,7 @@ class Model {
         return $m->__call($method, $arguments);
     }
 }
-
+```
 
 ## select one
 ```php
