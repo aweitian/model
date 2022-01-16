@@ -1,6 +1,17 @@
 # model
 model，第一版只包含:ORM
 
+## 静态调用
+namespace App\Model
+class Model {
+    public static function __callStatic($method, $arguments)
+    {
+        $m = new static(Application::getInstance()->make('mysql'));
+        return $m->__call($method, $arguments);
+    }
+}
+
+
 ## select one
 ```php
 $model = new Admin();
