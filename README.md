@@ -12,6 +12,8 @@ class Model {
     }
 }
 ```
+其它Model继承这个类就可以
+
 
 ## select one
 ```php
